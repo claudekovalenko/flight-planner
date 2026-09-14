@@ -243,8 +243,8 @@ tr.current td{background:var(--accent-soft)}
   </div>
 
   <div class="banner" id="banner" hidden>
-    <div><b>This is an example plan.</b> <span class="muted">Edit anything to make it yours, or start from an empty calendar.</span></div>
-    <button class="btn" id="startFresh">Start with an empty plan</button>
+    <div><b>This is an example plan, not yours.</b> <span class="muted">Load a plan file, start from an empty calendar, or just edit these rows.</span></div>
+    <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="importHere">Import a plan file</button><button class="btn" id="startFresh">Start with an empty plan</button></span>
   </div>
 
   <section id="summary">
@@ -865,6 +865,7 @@ $('#addEvent').addEventListener('click', () => {
   state.events.push(e); touch();
   const nm = document.getElementById('nm-' + e.id); if (nm) nm.focus();
 });
+$('#importHere').addEventListener('click', () => $('#importFile').click());
 $('#startFresh').addEventListener('click', () => { state = emptyPlan(); save({ quotes: true }); render(); });
 $('#quoteAll').addEventListener('click', quoteAll);
 // ---------- plan files ----------
