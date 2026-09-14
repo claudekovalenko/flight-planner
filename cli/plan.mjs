@@ -41,6 +41,14 @@ for (const g of plan.gaps) {
   const alt = g.options.home && g.options.direct ? `  via home ${FP.fmtMoney(g.options.home.price, cur)} / direct ${FP.fmtMoney(g.options.direct.price, cur)}` : '';
   console.log(`  ${byId[g.from].name} → ${byId[g.to].name}: ${g.days} day(s), ${g.resolved}${g.tight ? ' TIGHT' : ''}${g.overlap ? ' OVERLAP' : ''}${alt}`);
 }
+const sc = FP.scenarios(state);
+if (sc.toggled.length) {
+  console.log(`\nSCENARIOS (every yes/no mix of: ${sc.toggled.map((id) => byId[id].name).join(', ')}) — best score first`);
+  for (const r of sc.rows) {
+    const t = r.totals;
+    console.log(`  ${pad(r.yes.length ? r.yes.map((id) => byId[id].name).join(' + ') : '(none of them)', 30)} ${pad(t.route.join('→'), 26)} ${pad(FP.fmtMoney(t.price, cur), 7, true)} ${pad(t.points.toLocaleString() + ' pts', 11, true)} ${pad(FP.fmtDuration(t.blockMin), 8, true)} travel  span ${pad(FP.fmtSpan(t.spanMin), 6)} strain ${pad(t.strain, 5, true)} ${t.band}`);
+  }
+}
 console.log('\nDECISIONS (delta of flipping each event)');
 for (const r of rows) {
   const e = byId[r.id];

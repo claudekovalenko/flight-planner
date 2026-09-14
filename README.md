@@ -10,7 +10,12 @@ considering on one calendar (with the ones you've already committed to), and it 
 - **strain**: hours door to door, connections, time-zone shift, red-eyes, and turnarounds
   shorter than your buffer at home;
 - **the marginal cost of each event**: what saying *no* to a committed event saves, and
-  what saying *yes* to a maybe adds, given everything else on the calendar.
+  what saying *yes* to a maybe adds, given everything else on the calendar;
+- **every scenario side by side**: each yes/no combination of your maybes, auto-routed and
+  ranked by airfare plus what you say a strain point is worth, with one click to load it;
+- **a route map** (great-circle legs over Natural Earth land), cumulative travel time, journey
+  span from first departure to last arrival, ticket details with Expedia and Google Flights
+  links, and the fare in Chase Ultimate Rewards points at a rate you set.
 
 No build step. `index.html` + `plan.js` + `airports.js` is the whole app.
 
@@ -49,8 +54,11 @@ A plan file looks like `example-plan.json`. Quotes live under `quotes`, keyed
 
 **Routing.** Committed events are sorted by date. Between two of them, the planner either
 flies home (two legs) or straight to the next city (one leg). Gaps of at least the
-*go-home threshold* (default 4 days) default to home; shorter ones default to the direct
-hop. Any gap can be overridden. Events at the home airport need no legs. Travel days are
+*go-home threshold* (default 4 days) always go home; for shorter gaps the router scores
+each choice as `fare + strainDollar × (strain + turnaround penalty)` (default $25 per
+strain point) and takes the lower. So saying yes to an earlier city automatically re-routes
+the next leg to depart from there, and dropping a city collapses the legs around it. Any
+gap can be overridden. Events at the home airport need no legs. Travel days are
 the event dates, extended by "fly in the day before" / "fly out the day after".
 
 **Estimates.** Without a quote, a leg's flight time is `35 min + miles / 8` and its fare is
@@ -72,6 +80,7 @@ Bands: under 15 light, under 35 moderate, under 60 heavy, above that brutal.
 
 ## Data
 
+`world.js` holds Natural Earth 1:110m land polygons (public domain) for the map.
 `airports.js` is generated from the [OpenFlights](https://openflights.org/data.html) airport
 database (ODbL) by `scripts/build-airports.mjs`. Time-zone shift uses each airport's IANA
 zone on the travel date, so DST is handled.

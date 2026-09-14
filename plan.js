@@ -84,7 +84,9 @@
   const DEFAULT_SETTINGS = {
     home: 'SFO', travelers: 1, cabin: 'ECONOMY', currency: 'USD',
     minBufferDays: 2,      // days at home between trips before it counts as a tight turnaround
-    homeReturnMinGap: 4,   // gaps at least this long default to "go home in between"
+    homeReturnMinGap: 4,   // gaps at least this long always default to "go home in between"
+    strainDollar: 25,      // what one strain point is worth, in currency, when auto-routing weighs price against strain
+    pointsCents: 1.25,     // cents per Chase Ultimate Rewards point when redeemed for this travel
     weights: DEFAULT_WEIGHTS
   };
   const BANDS = [
@@ -141,8 +143,11 @@
       leg.airline = q.airline || null; leg.depart = q.depart || null; leg.arrive = q.arrive || null;
       const dep = parseClock(q.depart), arr = parseClock(q.arrive);
       leg.redEye = (dep != null && dep >= 21) || ((q.dayDiff || 0) >= 1 && ((arr != null && arr <= 6) || (q.durationMin || 0) >= 480)); // overnight itineraries count too
-      leg.fetchedAt = q.fetchedAt || null;
+      leg.fetchedAt = q.fetchedAt || null; leg.dayDiff = q.dayDiff || 0; leg.note = q.note || null;
     }
+    const depH = parseClock(leg.depart), arrH = parseClock(leg.arrive);
+    leg.departMin = parseISO(date) / 60000 + (depH != null ? depH * 60 : 9 * 60);
+    leg.arriveMin = arrH != null ? parseISO(date) / 60000 + ((q && q.dayDiff) || 0) * 1440 + arrH * 60 : leg.departMin + leg.durationMin;
     const w = ctx.weights;
     leg.strain = Math.round(((leg.durationMin / 60 + w.airportHours) * w.perHour + leg.stops * w.perStop + leg.tzShiftH * w.perTzHour + (leg.redEye ? w.redEye : 0)) * 10) / 10;
     return leg;
@@ -193,29 +198,33 @@
           opt.price = opt.legs.reduce((s, l) => s + l.price, 0);
           opt.strain = opt.legs.reduce((s, l) => s + l.strain, 0);
         }
+        // turnaround penalty for each way of bridging the gap
+        const penaltyFor = (mode) => {
+          if (mode === 'home' && a.airport !== home.code && b.airport !== home.code) return gapDays < settings.minBufferDays ? (settings.minBufferDays - gapDays) * settings.weights.tightTurnaroundPerDay : 0;
+          if (mode === 'direct') return settings.weights.noHomeGap + (gapDays <= 0 ? settings.weights.tightTurnaroundPerDay : 0);
+          return 0;
+        };
+        for (const [mode, opt] of [['home', homeOpt], ['direct', directOpt]]) if (opt) {
+          opt.penalty = penaltyFor(mode);
+          opt.score = opt.price + settings.strainDollar * (opt.strain + opt.penalty); // what auto-routing minimizes
+        }
         let resolved;
         if (a.airport === home.code || b.airport === home.code) resolved = 'home';
         else if (same) resolved = 'stay';
         else if (policy === 'home' || policy === 'direct') resolved = policy;
-        else resolved = gapDays >= settings.homeReturnMinGap ? 'home' : 'direct';
+        else if (gapDays >= settings.homeReturnMinGap) resolved = 'home';
+        else resolved = homeOpt.score <= directOpt.score ? 'home' : 'direct';
         if (overlap) resolved = same ? 'stay' : 'direct';
         g.resolved = resolved;
+        g.auto = policy === 'auto';
         g.options = { home: homeOpt, direct: directOpt };
 
         const chosen = resolved === 'home' ? homeOpt : directOpt;
-        chosen.legs.forEach((l, idx) => legs.push(Object.assign(l, { eventFrom: a.id, eventTo: b.id, gapKey: key })));
+        chosen.legs.forEach((l) => legs.push(Object.assign(l, { eventFrom: a.id, eventTo: b.id, gapKey: key })));
 
-        // buffer & penalties
-        if (resolved === 'home' && a.airport !== home.code && b.airport !== home.code) {
-          g.buffer = gapDays; // full days at home
-          g.tight = gapDays < settings.minBufferDays;
-          g.penalty = g.tight ? (settings.minBufferDays - gapDays) * settings.weights.tightTurnaroundPerDay : 0;
-        } else if (resolved === 'direct') {
-          g.buffer = gapDays; g.tight = gapDays <= 0;
-          g.penalty = settings.weights.noHomeGap + (gapDays <= 0 ? settings.weights.tightTurnaroundPerDay : 0);
-        } else {
-          g.buffer = gapDays; g.tight = false; g.penalty = 0;
-        }
+        g.buffer = gapDays;
+        g.tight = resolved === 'home' ? (a.airport !== home.code && b.airport !== home.code && gapDays < settings.minBufferDays) : resolved === 'direct' ? gapDays <= 0 : false;
+        g.penalty = penaltyFor(resolved);
         if (overlap) { g.tight = true; g.penalty += settings.weights.tightTurnaroundPerDay * 2; }
         gaps.push(g);
       }
@@ -239,7 +248,15 @@
     }
     const nightsAway = trips.reduce((s, t) => s + Math.max(0, diffDays(t.depart, t.return)), 0);
 
+    let cum = 0;
+    for (const l of legs) { cum += l.durationMin; l.cumTravelMin = cum; }
+    const first = legs[0], last = legs[legs.length - 1];
+    const route = legs.length ? [legs[0].from].concat(legs.map((l) => l.to)) : [];
     const totals = {
+      route,
+      spanMin: legs.length ? Math.max(0, Math.round(last.arriveMin - first.departMin)) : 0, // first departure to last arrival, local clocks
+      doorMin: Math.round(legs.reduce((s, l) => s + l.durationMin + settings.weights.airportHours * 60, 0)),
+      points: Math.round(legs.reduce((s, l) => s + l.price, 0) / (settings.pointsCents / 100)),
       price: Math.round(legs.reduce((s, l) => s + l.price, 0)),
       quotedPrice: Math.round(legs.filter((l) => l.source !== 'estimate').reduce((s, l) => s + l.price, 0)),
       quotedLegs: legs.filter((l) => l.source !== 'estimate').length,
@@ -285,6 +302,26 @@
     return { base, rows };
   }
 
+  /** Every yes/no combination of the "maybe" events (committed events stay in, declined stay out), each auto-routed.
+   *  Capped at the first `cap` maybes by date so the table stays readable. */
+  function scenarios(state, cap) {
+    cap = cap || 6;
+    const evs = (state.events || []).map(normalizeEvent);
+    const maybes = evs.filter((e) => e.status === 'maybe' && validISO(e.start) && airport(e.airport)).sort((a, b) => parseISO(a.start) - parseISO(b.start));
+    const toggled = maybes.slice(0, cap), fixedOut = maybes.slice(cap).map((e) => e.id);
+    const n = toggled.length, out = [];
+    for (let mask = 0; mask < (1 << n); mask++) {
+      const yes = toggled.filter((e, i) => mask & (1 << i)).map((e) => e.id);
+      const st = Object.assign({}, state, { events: evs.map((e) => (yes.includes(e.id) ? Object.assign({}, e, { status: 'yes' }) : toggled.some((t) => t.id === e.id) || fixedOut.includes(e.id) ? Object.assign({}, e, { status: 'no' }) : e)) });
+      const plan = buildPlan(st);
+      out.push({ mask, yes, no: toggled.filter((e) => !yes.includes(e.id)).map((e) => e.id), plan, totals: plan.totals, score: plan.totals.price + (plan.settings.strainDollar || 0) * plan.totals.strain });
+    }
+    out.sort((a, b) => a.score - b.score);
+    return { toggled: toggled.map((e) => e.id), skipped: fixedOut, rows: out };
+  }
+  function toPoints(price, cents) { return Math.round(price / ((cents || 1) / 100)); }
+  function fmtSpan(min) { const d = Math.floor(min / 1440), h = Math.round((min % 1440) / 60); return d ? `${d}d ${h}h` : `${h}h`; }
+
   function fmtDuration(min) { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h ${m ? m + 'm' : ''}`.trim() : `${m}m`; }
   function fmtMoney(n, currency) {
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(n); }
@@ -313,6 +350,6 @@
   return {
     airport, searchAirports, addDays, diffDays, validISO, parseISO, toISO, tzOffsetMin, haversineMiles,
     DEFAULT_SETTINGS, DEFAULT_WEIGHTS, BANDS, strainBand, quoteKey, buildPlan, marginal, withStatus,
-    arriveDate, leaveDate, normalizeEvent, fmtDuration, fmtMoney, quoteFromExpedia, parseDuration, parseClock, estimateLeg
+    arriveDate, leaveDate, normalizeEvent, fmtDuration, fmtSpan, fmtMoney, quoteFromExpedia, parseDuration, parseClock, estimateLeg, scenarios, toPoints
   };
 });

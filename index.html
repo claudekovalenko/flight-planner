@@ -115,6 +115,9 @@ th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:upp
 td{padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr:last-child td{border-bottom:0}
 td.r,th.r{text-align:right}
+td.nowrap{white-space:nowrap}
+td .btn{white-space:nowrap}
+.chip{white-space:nowrap}
 td input[type=text],td input[type=date],td select,td input[type=number]{background:transparent;border:1px solid transparent;border-radius:3px;padding:4px 6px;min-height:30px;width:100%}
 td input:hover,td select:hover{border-color:var(--line-2)}
 td input:focus,td select:focus{border-color:var(--accent);background:var(--surface);outline:none}
@@ -162,6 +165,34 @@ details[open].settings summary::after{content:"–"}
 .notes{margin-top:28px;font-size:13px;color:var(--ink-2);max-width:78ch;display:flex;flex-direction:column;gap:6px}
 .notes code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 4px;border-radius:3px}
 
+/* scenarios */
+tr.current td{background:var(--accent-soft)}
+.scen-yes{font-weight:500}
+.scen-route{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.pts{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
+
+/* map */
+.map{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
+.map svg{display:block;width:100%;height:auto}
+.map .sea{fill:var(--surface)}
+.map .land{fill:var(--surface-2);stroke:var(--line-2);stroke-width:.7;stroke-linejoin:round}
+.map .grat{stroke:var(--line);stroke-width:.6}
+.map .gratlbl{font:10px var(--mono);fill:var(--ink-3)}
+.map .arc{fill:none;stroke:var(--series);stroke-width:2;stroke-linecap:round}
+.map .apt{fill:var(--ink);stroke:var(--surface);stroke-width:2}
+.map .apt.home{fill:var(--accent)}
+.map .apt.maybe{fill:var(--surface);stroke:var(--series);stroke-width:2}
+.map .aptlbl{font:500 11.5px var(--mono);fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.map .seqbg{fill:var(--series);stroke:var(--surface);stroke-width:1.5}
+.map .seq{font:600 10px var(--mono);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.map .empty{padding:18px 12px;color:var(--ink-2);font-size:13px}
+
+/* tickets */
+.ticket{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.ticket a{color:var(--accent);text-decoration:none}
+.ticket a:hover{text-decoration:underline}
+.ticket .times{font-family:var(--mono);color:var(--ink)}
+
 /* airport suggest */
 .suggest{position:fixed;z-index:30;background:var(--surface);border:1px solid var(--line-2);border-radius:4px;box-shadow:var(--shadow);min-width:260px;max-width:340px;max-height:260px;overflow:auto;font-size:13px}
 .suggest[hidden]{display:none}
@@ -204,6 +235,19 @@ details[open].settings summary::after{content:"–"}
 
   <section>
     <div class="sec-head">
+      <div><div class="eyebrow">Scenarios</div><h2>Every combination, side by side</h2></div>
+      <p class="lead tiny" id="scenLead">Committed events are in every row. Each row is one yes/no mix of your maybes, routed automatically, sorted by airfare plus what a strain point is worth to you.</p>
+    </div>
+    <div class="tablewrap">
+      <table id="scenarios">
+        <thead><tr><th>Say yes to</th><th>Route</th><th class="r">Airfare</th><th class="r">Chase pts</th><th class="r">Travel</th><th class="r">Span</th><th class="r">Strain</th><th></th></tr></thead>
+        <tbody id="scenRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
       <div><div class="eyebrow">Calendar</div><h2>Where the trips stack up</h2></div>
       <p class="lead tiny">Bars are events. The strip underneath shows what happens between committed events: time at home, an event-to-event hop, or an overlap.</p>
     </div>
@@ -212,6 +256,14 @@ details[open].settings summary::after{content:"–"}
       <span><i class="sw-yes"></i>Committed</span><span><i class="sw-maybe"></i>Maybe</span><span><i class="sw-no"></i>Declined</span>
       <span style="margin-left:auto"><i class="sw-good"></i>Home, enough buffer</span><span><i class="sw-warn"></i>Home, tight</span><span><i class="sw-serious"></i>Straight to next event</span><span><i class="sw-critical"></i>Overlap</span>
     </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div><div class="eyebrow">Map</div><h2>The route on the ground</h2></div>
+      <p class="lead tiny">Committed legs in flying order along the great circle. Hollow markers are maybes you haven't said yes to.</p>
+    </div>
+    <div class="map" id="map"></div>
   </section>
 
   <section>
@@ -238,11 +290,11 @@ details[open].settings summary::after{content:"–"}
     </div>
     <div class="tablewrap">
       <table id="legs">
-        <thead><tr><th>Date</th><th>Leg</th><th>Purpose</th><th class="r">In air</th><th>Stops</th><th class="r">TZ shift</th><th class="r">Strain</th><th class="r">Price</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Leg &amp; ticket</th><th>Purpose</th><th class="r">Travel</th><th class="r">Elapsed</th><th>Stops</th><th class="r">TZ shift</th><th class="r">Strain</th><th class="r">Price</th><th></th></tr></thead>
         <tbody id="legRows"></tbody>
       </table>
     </div>
-    <p class="tiny muted" style="margin-top:8px">Estimated prices come from distance alone and are only there so the deltas have something to work with. Quote a leg to replace the estimate with the cheapest fare Expedia returns for that day; click a price to type in a fare you found elsewhere.</p>
+    <p class="tiny muted" style="margin-top:8px">Travel time is gate to gate including layovers. Elapsed is the running total of travel time through that leg. Estimated prices come from distance alone; quote a leg to replace the estimate with the cheapest fare Expedia returns for that day, or click a price to type in a fare you found elsewhere. Between two events the router picks "go home" or "straight there" by fare plus strain unless you override it.</p>
   </section>
 
   <details class="settings" id="settingsBox">
@@ -264,6 +316,7 @@ details[open].settings summary::after{content:"–"}
 <div class="suggest" id="suggest" hidden role="listbox"></div>
 
 <script src="airports.js"></script>
+<script src="world.js"></script>
 <script src="plan.js"></script>
 <script>
 (function(){
@@ -421,14 +474,15 @@ function render() {
   $('#travelers').value = state.settings.travelers || 1;
   $('#cabin').value = state.settings.cabin || 'ECONOMY';
   $('#banner').hidden = !state.sample;
-  renderTiles(); renderWarnings(); renderTimeline(); renderEvents(); renderLegs(); renderSettings();
+  renderTiles(); renderWarnings(); renderScenarios(); renderTimeline(); renderMap(); renderEvents(); renderLegs(); renderSettings();
 }
 
 function renderTiles() {
   const t = plan.totals, wrap = $('#tiles'); wrap.replaceChildren();
   const tile = (k, v, s) => wrap.append(el('div', { class: 'tile' }, el('div', { class: 'k' }, k), el('div', { class: 'v' }, v), el('div', { class: 's' }, s)));
-  tile('Airfare', money(t.price), t.legs ? `${t.quotedLegs} of ${t.legs} legs quoted` : 'no committed trips');
-  tile('In the air', FP.fmtDuration(t.blockMin), `${t.legs} leg${t.legs === 1 ? '' : 's'}${t.stops ? `, ${t.stops} connection${t.stops === 1 ? '' : 's'}` : ''}`);
+  tile('Airfare', money(t.price), t.legs ? `≈ ${t.points.toLocaleString()} Chase pts at ${plan.settings.pointsCents}¢ · ${t.quotedLegs} of ${t.legs} legs quoted` : 'no committed trips');
+  tile('Travel time', FP.fmtDuration(t.blockMin), `${t.legs} leg${t.legs === 1 ? '' : 's'}${t.stops ? `, ${t.stops} connection${t.stops === 1 ? '' : 's'}` : ''}${t.legs ? ` · ≈ ${FP.fmtDuration(t.doorMin)} door to door` : ''}`);
+  tile('Journey span', t.legs ? FP.fmtSpan(t.spanMin) : '—', t.legs ? t.route.join(' → ') : 'first departure to last arrival');
   tile('Nights away', String(t.nightsAway), `${t.trips} trip${t.trips === 1 ? '' : 's'} from ${plan.home ? plan.home.code : '?'}`);
   const strainTile = el('div', { class: 'tile' }, el('div', { class: 'k' }, 'Strain'), el('div', { class: 'v' }, String(t.strain), ' ', el('span', { class: 'chip ' + t.band }, el('i'), t.band)), el('div', { class: 's' }, `${t.tzHours}h of time-zone shift${t.redEyes ? `, ${t.redEyes} red-eye${t.redEyes === 1 ? '' : 's'}` : ''}`));
   wrap.append(strainTile);
@@ -503,6 +557,117 @@ function bindTip(node, html) {
   node.addEventListener('focus', (ev) => show(ev)); node.addEventListener('blur', () => (tip.hidden = true));
 }
 
+// scenarios
+function renderScenarios() {
+  const tb = $('#scenRows'); tb.replaceChildren();
+  const byEv = Object.fromEntries(state.events.map((e) => [e.id, e]));
+  const sc = FP.scenarios(state);
+  const lead = $('#scenLead');
+  if (!sc.toggled.length) {
+    lead.textContent = 'Mark an event as Maybe and every yes/no combination of your maybes shows up here, routed automatically and ranked.';
+    tb.append(el('tr', {}, el('td', { colspan: 8, class: 'muted' }, state.events.length ? 'No maybes yet. Everything is either committed or declined.' : 'Add events to compare scenarios.')));
+    return;
+  }
+  lead.textContent = `Committed events are in every row. Each row is one yes/no mix of ${sc.toggled.map((id) => byEv[id].name).join(', ')}, routed automatically and sorted by airfare plus ${money(plan.settings.strainDollar)} per strain point.${sc.skipped.length ? ` ${sc.skipped.length} more maybe${sc.skipped.length > 1 ? 's are' : ' is'} left out to keep this readable.` : ''}`;
+  const currentYes = state.events.filter((e) => e.status === 'yes').map((e) => e.id);
+  for (const r of sc.rows) {
+    const t = r.totals;
+    const isCurrent = sc.toggled.every((id) => r.yes.includes(id) === currentYes.includes(id));
+    const names = r.yes.length ? r.yes.map((id) => byEv[id].name).join(' + ') : 'none of them';
+    tb.append(el('tr', { class: isCurrent ? 'current' : '' },
+      el('td', { class: 'scen-yes' }, names, isCurrent ? el('span', { class: 'chip', style: 'margin-left:8px' }, 'current') : null),
+      el('td', {}, el('div', { class: 'scen-route' }, t.route.length ? t.route.join(' → ') : 'stay home')),
+      el('td', { class: 'r num' }, money(t.price)),
+      el('td', { class: 'r' }, el('span', { class: 'pts' }, t.points.toLocaleString())),
+      el('td', { class: 'r num' }, FP.fmtDuration(t.blockMin)),
+      el('td', { class: 'r num' }, t.legs ? FP.fmtSpan(t.spanMin) : '—'),
+      el('td', { class: 'r num' }, String(t.strain), ' ', el('span', { class: 'chip ' + t.band }, el('i'), t.band), t.tight ? el('div', { class: 'tiny', style: 'color:var(--critical-text)' }, `${t.tight} tight`) : null),
+      el('td', {}, isCurrent ? null : el('button', { class: 'btn small', onclick: () => { for (const e of state.events) if (sc.toggled.includes(e.id)) e.status = r.yes.includes(e.id) ? 'yes' : 'maybe'; for (const e of state.events) if (r.yes.includes(e.id)) e.status = 'yes'; setScenario(r.yes, sc.toggled); } }, 'Load'))
+    ));
+  }
+}
+function setScenario(yesIds, toggled) {
+  // events in the scenario become Yes; the other toggled maybes stay Maybe so they remain in the table
+  for (const e of state.events) { if (toggled.includes(e.id)) e.status = yesIds.includes(e.id) ? 'yes' : 'maybe'; }
+  touch();
+}
+
+// map
+function greatCircle(a, b, n) {
+  const toR = (d) => (d * Math.PI) / 180, toD = (r) => (r * 180) / Math.PI;
+  const p1 = toR(a.lat), l1 = toR(a.lon), p2 = toR(b.lat), l2 = toR(b.lon);
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin((l2 - l1) / 2) ** 2));
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    if (d < 1e-9) { out.push([a.lon, a.lat]); continue; }
+    const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2), y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2), z = A * Math.sin(p1) + B * Math.sin(p2);
+    out.push([toD(Math.atan2(y, x)), toD(Math.atan2(z, Math.sqrt(x * x + y * y)))]);
+  }
+  return out;
+}
+function renderMap() {
+  const box = $('#map'); box.replaceChildren();
+  const used = new Map();
+  if (plan.home) used.set(plan.home.code, { ap: plan.home, kind: 'home' });
+  for (const e of plan.events) { const ap = FP.airport(e.airport); if (ap && !used.has(ap.code)) used.set(ap.code, { ap, kind: 'yes' }); }
+  for (const e of state.events.map(FP.normalizeEvent)) if (e.status === 'maybe') { const ap = FP.airport(e.airport); if (ap && !used.has(ap.code)) used.set(ap.code, { ap, kind: 'maybe' }); }
+  if (!used.size) { box.append(el('div', { class: 'empty' }, 'Set a home airport and the map draws itself.')); return; }
+  const arcs = plan.legs.map((l) => ({ leg: l, pts: greatCircle(FP.airport(l.from), FP.airport(l.to), 40) }));
+  const merc = (lat) => (Math.log(Math.tan(Math.PI / 4 + (Math.max(-80, Math.min(80, lat)) * Math.PI) / 360)) * 180) / Math.PI;
+  let minLon = Infinity, maxLon = -Infinity, minY = Infinity, maxY = -Infinity;
+  const take = (lon, lat) => { minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon); const y = merc(lat); minY = Math.min(minY, y); maxY = Math.max(maxY, y); };
+  for (const u of used.values()) take(u.ap.lon, u.ap.lat);
+  for (const a of arcs) for (const [lon, lat] of a.pts) take(lon, lat);
+  if (maxLon - minLon < 8) { const c = (minLon + maxLon) / 2; minLon = c - 4; maxLon = c + 4; }
+  if (maxY - minY < 6) { const c = (minY + maxY) / 2; minY = c - 3; maxY = c + 3; }
+  const padX = (maxLon - minLon) * 0.14, padY = (maxY - minY) * 0.22;
+  minLon -= padX; maxLon += padX; minY -= padY; maxY += padY;
+  const W = Math.max(320, box.clientWidth), ratio = (maxY - minY) / (maxLon - minLon);
+  const H = Math.round(Math.max(W * 0.38, Math.min(W * 0.72, W * ratio)));
+  const scale = Math.min(W / (maxLon - minLon), H / (maxY - minY));
+  const cx = (minLon + maxLon) / 2, cy = (minY + maxY) / 2;
+  const proj = (lon, lat) => [W / 2 + (lon - cx) * scale, H / 2 - (merc(lat) - cy) * scale];
+  const visLon0 = cx - W / 2 / scale, visLon1 = cx + W / 2 / scale, visY0 = cy - H / 2 / scale, visY1 = cy + H / 2 / scale;
+  const ns = (t, a) => { const n = document.createElementNS('http://www.w3.org/2000/svg', t); for (const k in a) n.setAttribute(k, a[k]); return n; };
+  const svg = ns('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Route map' });
+  svg.append(ns('rect', { x: 0, y: 0, width: W, height: H, class: 'sea' }));
+  const land = window.WORLD_LAND || [];
+  let d = '';
+  for (const ring of land) {
+    let rMinLon = Infinity, rMaxLon = -Infinity, rMinLat = Infinity, rMaxLat = -Infinity;
+    for (const [lon, lat] of ring) { if (lon < rMinLon) rMinLon = lon; if (lon > rMaxLon) rMaxLon = lon; if (lat < rMinLat) rMinLat = lat; if (lat > rMaxLat) rMaxLat = lat; }
+    if (rMaxLon < visLon0 || rMinLon > visLon1 || merc(rMaxLat) < visY0 || merc(rMinLat) > visY1) continue;
+    d += ring.map(([lon, lat], i) => { const [x, y] = proj(lon, lat); return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }).join('') + 'Z';
+  }
+  if (d) svg.append(ns('path', { d, class: 'land' }));
+  // graticule every 10 degrees
+  for (let lon = Math.ceil(visLon0 / 10) * 10; lon <= visLon1; lon += 10) { const [x] = proj(lon, 0); svg.append(ns('line', { x1: x, x2: x, y1: 0, y2: H, class: 'grat' })); const t = ns('text', { x: x + 3, y: H - 6, class: 'gratlbl' }); t.textContent = `${Math.abs(lon)}°${lon < 0 ? 'W' : 'E'}`; svg.append(t); }
+  const lat0 = (2 * Math.atan(Math.exp((visY0 * Math.PI) / 180)) - Math.PI / 2) * 180 / Math.PI, lat1 = (2 * Math.atan(Math.exp((visY1 * Math.PI) / 180)) - Math.PI / 2) * 180 / Math.PI;
+  for (let lat = Math.ceil(lat0 / 10) * 10; lat <= lat1; lat += 10) { const [, y] = proj(0, lat); svg.append(ns('line', { x1: 0, x2: W, y1: y, y2: y, class: 'grat' })); const t = ns('text', { x: 4, y: y - 3, class: 'gratlbl' }); t.textContent = `${Math.abs(lat)}°${lat < 0 ? 'S' : 'N'}`; svg.append(t); }
+  // legs
+  arcs.forEach((a, i) => {
+    const pts = a.pts.map(([lon, lat]) => proj(lon, lat));
+    const path = ns('path', { d: pts.map(([x, y], j) => (j ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(''), class: 'arc' });
+    bindTip(path, `<b>Leg ${i + 1}: ${a.leg.from} → ${a.leg.to}</b><br>${fmtDW(a.leg.date)} · ${FP.fmtDuration(a.leg.durationMin)} · ${money(a.leg.price, a.leg.currency)}${a.leg.airline ? '<br>' + esc(a.leg.airline) : ''}`);
+    svg.append(path);
+    let f = 0.36 + 0.28 * (i % 2); if (FP.airport(a.leg.from).lon > FP.airport(a.leg.to).lon) f = 1 - f;
+    const at = pts[Math.min(pts.length - 1, Math.round((pts.length - 1) * f))];
+    const g = ns('g', {}); g.append(ns('circle', { cx: at[0], cy: at[1], r: 9, class: 'seqbg' })); const t = ns('text', { x: at[0], y: at[1], class: 'seq' }); t.textContent = String(i + 1); g.append(t); svg.append(g);
+  });
+  // airports
+  for (const u of used.values()) {
+    const [x, y] = proj(u.ap.lon, u.ap.lat);
+    const g = ns('g', { tabindex: 0 });
+    g.append(ns('circle', { cx: x, cy: y, r: u.kind === 'home' ? 6 : 5, class: 'apt ' + u.kind }));
+    const t = ns('text', { x: x + 9, y: y + 4, class: 'aptlbl' }); t.textContent = u.ap.code; g.append(t);
+    bindTip(g, `<b>${esc(u.ap.city)} · ${u.ap.code}</b><br>${esc(u.ap.name)}<br>${u.kind === 'home' ? 'home' : u.kind === 'yes' ? 'committed' : 'maybe'}`);
+    svg.append(g);
+  }
+  box.append(svg);
+}
+
 // events table
 function renderEvents() {
   const tb = $('#eventRows'); tb.replaceChildren();
@@ -572,17 +737,29 @@ function renderLegs() {
     if (quoting.has(l.key)) act.append(el('span', { class: 'status-msg' }, 'Searching…'));
     else act.append(el('button', { class: 'btn small', disabled: mcp ? undefined : '', title: mcp ? 'Search Expedia for this day' : 'Open in claude.ai with Expedia connected', onclick: () => quoteLeg(l) }, isQ ? 'Re-quote' : 'Quote'));
     tb.append(el('tr', {},
-      el('td', { class: 'mono num' }, fmtDW(l.date)),
-      el('td', {}, el('div', { class: 'route' }, el('b', {}, l.from), ' → ', el('b', {}, l.to)), el('div', { class: 'tiny muted' }, `${l.fromCity} → ${l.toCity} · ${l.miles.toLocaleString()} mi`)),
-      el('td', { class: 'tiny' }, purposeText[l.purpose], el('div', { class: 'muted' }, l.eventTo && byEv[l.eventTo] ? 'for ' + byEv[l.eventTo].name : l.eventFrom && byEv[l.eventFrom] ? 'after ' + byEv[l.eventFrom].name : '')),
+      el('td', { class: 'mono num nowrap' }, fmtDW(l.date)),
+      el('td', {}, el('div', { class: 'route' }, el('b', {}, l.from), ' → ', el('b', {}, l.to), el('span', { class: 'tiny muted' }, ` ${l.fromCity} → ${l.toCity} · ${l.miles.toLocaleString()} mi`)), ticketLine(l)),
+      el('td', { class: 'tiny nowrap' }, purposeText[l.purpose], el('div', { class: 'muted' }, l.eventTo && byEv[l.eventTo] ? 'for ' + byEv[l.eventTo].name : l.eventFrom && byEv[l.eventFrom] ? 'after ' + byEv[l.eventFrom].name : '')),
       el('td', { class: 'r num' }, FP.fmtDuration(l.durationMin)),
+      el('td', { class: 'r num muted' }, FP.fmtDuration(l.cumTravelMin)),
       el('td', {}, l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}` : 'nonstop', l.redEye ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'red-eye') : null),
       el('td', { class: 'r num' }, l.tzShiftH ? `${l.tzShiftH}h` : '—'),
       el('td', { class: 'r num' }, String(l.strain)),
-      el('td', { class: 'r' }, priceCell, el('div', { class: 'src ' + l.source }, srcText)),
+      el('td', { class: 'r' }, priceCell, el('div', { class: 'src ' + l.source }, srcText), el('div', { class: 'pts' }, `≈ ${FP.toPoints(l.price, state.settings.pointsCents).toLocaleString()} pts`)),
       act
     ));
   }
+}
+function ticketLine(l) {
+  const box = el('div', { class: 'ticket' });
+  const mmdd = l.date.slice(5, 7) + '/' + l.date.slice(8, 10) + '/' + l.date.slice(0, 4);
+  const expedia = `https://www.expedia.com/Flights-Search?trip=oneway&leg1=from:${l.from},to:${l.to},departure:${mmdd}TANYT&passengers=adults:${state.settings.travelers || 1},children:0,infantinlap:N&mode=search`;
+  const google = `https://www.google.com/travel/flights?q=${encodeURIComponent(`one way flights from ${l.from} to ${l.to} on ${l.date}`)}`;
+  if (l.source === 'expedia') box.append(el('div', {}, `${l.airline || 'Expedia fare'} · `, el('span', { class: 'times' }, `${l.depart || '?'} → ${l.arrive || '?'}${l.dayDiff ? ` (+${l.dayDiff}d)` : ''}`), l.note ? el('div', { class: 'tiny' }, l.note) : null));
+  else if (l.source === 'manual') box.append(el('div', {}, 'Fare typed in by hand.'));
+  else box.append(el('div', {}, 'No fare quoted yet; price and time are estimates.'));
+  box.append(el('div', {}, 'Book or compare: ', el('a', { href: expedia, target: '_blank', rel: 'noopener' }, 'Expedia'), ' · ', el('a', { href: google, target: '_blank', rel: 'noopener' }, 'Google Flights')));
+  return box;
 }
 function gapRow(g, byEv) {
   if (!g) return el('tr');
@@ -596,6 +773,10 @@ function gapRow(g, byEv) {
   else if (g.resolved === 'stay') td.append('same city, stay put');
   else { td.append(sel); td.append(' '); td.append(el('span', { class: g.tight ? 'tight' : '' }, g.resolved === 'home' ? (g.tight ? `→ only ${g.days} day${g.days === 1 ? '' : 's'} at home, tight` : '→ home in between') : (g.tight ? '→ same-day connection, tight' : '→ no home time in between'))); }
   if (!hasBoth && !g.overlap && g.resolved !== 'stay') sel.disabled = true;
+  if (hasBoth && g.auto) {
+    const h = g.options.home, dct = g.options.direct;
+    td.append(el('div', { class: 'tiny', style: 'margin-top:3px' }, `Auto picked ${g.resolved === 'home' ? 'going home' : 'straight there'}: ${money(dct.price)} + strain ${(dct.strain + dct.penalty).toFixed(1)} scores ${money(dct.score)} for straight there, vs ${money(h.price)} + strain ${(h.strain + h.penalty).toFixed(1)} scores ${money(h.score)} for going home, at ${money(plan.settings.strainDollar)} per strain point.`));
+  }
   return el('tr', { class: 'gaprow' }, td);
 }
 function editPrice(leg, cell) {
@@ -613,6 +794,8 @@ function renderSettings() {
   const g = $('#settingsGrid'); g.replaceChildren();
   const s = state.settings, w = s.weights;
   const num = (id, label, get, set, help, step) => g.append(el('div', { class: 'field' }, el('label', { for: 'set-' + id }, label), el('input', { type: 'number', id: 'set-' + id, step: step || 1, min: 0, value: get(), onchange: (ev) => { set(+ev.target.value); save(); render(); } }), el('div', { class: 'help' }, help)));
+  num('strain$', 'What a strain point is worth ($)', () => s.strainDollar, (v) => (s.strainDollar = v), 'The router picks "go home" vs "straight there" by fare plus this much per strain point; scenarios rank by it too.', 5);
+  num('cents', 'Chase points: cents per point', () => s.pointsCents, (v) => (s.pointsCents = v), 'Airfare ÷ this = points. 1.0¢ base, 1.25¢ Sapphire Preferred (legacy portal rate), 1.5¢ Sapphire Reserve (legacy), up to 2.0¢ on Points Boost fares. Check your card\'s current rate.', 0.05);
   num('buffer', 'Buffer days at home', () => s.minBufferDays, (v) => (s.minBufferDays = v), 'Fewer full days at home than this between trips counts as a tight turnaround.');
   num('gohome', 'Go-home threshold (days)', () => s.homeReturnMinGap, (v) => (s.homeReturnMinGap = v), 'Gaps this long or longer default to flying home in between.');
   num('airport', 'Airport overhead (hours)', () => w.airportHours, (v) => (w.airportHours = v), 'Door-to-door time added to every leg on top of the flight.', 0.5);
@@ -660,7 +843,7 @@ $('#addEvent').addEventListener('click', () => {
 });
 $('#startFresh').addEventListener('click', () => { state = emptyPlan(); save({ quotes: true }); render(); });
 $('#quoteAll').addEventListener('click', quoteAll);
-let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(renderTimeline, 120); });
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { renderTimeline(); renderMap(); }, 120); });
 
 render();
 renderQuoteStatus();
