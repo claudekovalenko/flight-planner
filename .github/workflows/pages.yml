@@ -25,10 +25,9 @@ jobs:
           node-version: 22
       - name: Build the static site
         run: node scripts/build-pwa.mjs --build "${GITHUB_SHA::7}"
+      # Needs Pages switched on once: Settings -> Pages -> Source: GitHub Actions.
+      # (The workflow token is not allowed to create the Pages site itself.)
       - uses: actions/configure-pages@v5
-        with:
-          # Turns Pages on for the repo the first time this runs, so no manual setup step.
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
