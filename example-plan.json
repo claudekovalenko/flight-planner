@@ -1,0 +1,12 @@
+{
+  "settings": { "home": "SFO", "travelers": 1, "cabin": "ECONOMY", "currency": "USD", "minBufferDays": 2, "homeReturnMinGap": 4 },
+  "events": [
+    { "id": "e1", "name": "Design Week talk", "airport": "JFK", "start": "2026-10-06", "end": "2026-10-08", "status": "yes", "priority": 1, "arriveDayBefore": true, "leaveDayAfter": false },
+    { "id": "e2", "name": "Client onsite", "airport": "ORD", "start": "2026-10-09", "end": "2026-10-10", "status": "yes", "priority": 2, "arriveDayBefore": false, "leaveDayAfter": false },
+    { "id": "e3", "name": "London conference", "airport": "LHR", "start": "2026-10-19", "end": "2026-10-22", "status": "maybe", "priority": 2, "arriveDayBefore": true, "leaveDayAfter": true },
+    { "id": "e4", "name": "Team offsite", "airport": "DEN", "start": "2026-10-27", "end": "2026-10-29", "status": "yes", "priority": 1, "arriveDayBefore": true, "leaveDayAfter": false },
+    { "id": "e5", "name": "Friend's wedding", "airport": "AUS", "start": "2026-10-30", "end": "2026-11-01", "status": "maybe", "priority": 3, "arriveDayBefore": false, "leaveDayAfter": false }
+  ],
+  "gapPolicies": {},
+  "quotes": {}
+}
