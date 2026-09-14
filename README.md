@@ -27,10 +27,18 @@ or wrapped into a standalone page by `scripts/build-pwa.mjs`.
 
 ### As an installed app (GitHub Pages)
 
-The repo ships as an installable PWA. `.github/workflows/pages.yml` builds `dist/` and deploys
-it on every push, so once Pages is switched on (**Settings → Pages → Source: GitHub Actions**)
-the app lives at `https://<user>.github.io/flight-planner/`. Open it in a browser and use the
-install prompt (or the **Install app** button) to put it on the home screen or dock.
+The repo ships as an installable PWA, built and deployed by `.github/workflows/pages.yml` on
+every push. Pages has to be switched on once by hand, because a workflow token is not allowed
+to create a Pages site:
+
+1. **Settings → Pages → Source: GitHub Actions**.
+2. Re-run the latest run under **Actions → Deploy to GitHub Pages** (or push anything).
+
+The app then lives at `https://<user>.github.io/<repo>/`. Open it in a browser and use the
+install prompt, or the **Install app** button in the header, to put it on a home screen or dock.
+
+On a public repo the deployed page is public, like any Pages site. The plan is not: it is kept
+in the browser storage of whoever opens it, never in the repo and never on a server.
 
 Installed, it works with no connection: the airport table, the map, the routing and every
 calculation run on the device, and a service worker caches the shell. A new deploy shows up as
