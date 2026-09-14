@@ -1,0 +1,21 @@
+{
+  "name": "Turnaround Ledger",
+  "short_name": "Turnaround",
+  "description": "Decide which trips to say yes to: airfare, hours in the air, nights away, tight turnarounds, and what changes if you flip any event.",
+  "id": "turnaround-ledger",
+  "start_url": ".",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "en-US",
+  "dir": "ltr",
+  "background_color": "#14171a",
+  "theme_color": "#1b1f1d",
+  "categories": ["travel", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
