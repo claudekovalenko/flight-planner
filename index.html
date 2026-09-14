@@ -167,6 +167,11 @@ details[open].settings summary::after{content:"–"}
 
 /* scenarios */
 tr.current td{background:var(--accent-soft)}
+.cov{display:flex;flex-direction:column;gap:2px;min-width:110px}
+.cov span{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--ink-2)}
+.cov input[type=number]{width:58px;font-family:var(--mono);text-align:right}
+.cov input[type=text]{font-size:12px;width:110px}
+.gross{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
 .scen-yes{font-weight:500}
 .scen-route{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
 .pts{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
@@ -240,7 +245,7 @@ tr.current td{background:var(--accent-soft)}
     </div>
     <div class="tablewrap">
       <table id="scenarios">
-        <thead><tr><th>Say yes to</th><th>Route</th><th class="r">Airfare</th><th class="r">Chase pts</th><th class="r">Travel</th><th class="r">Span</th><th class="r">Strain</th><th></th></tr></thead>
+        <thead><tr><th>Say yes to</th><th>Route</th><th class="r">You pay</th><th class="r">Chase pts</th><th class="r">Travel</th><th class="r">Span</th><th class="r">Strain</th><th></th></tr></thead>
         <tbody id="scenRows"></tbody>
       </table>
     </div>
@@ -269,13 +274,13 @@ tr.current td{background:var(--accent-soft)}
   <section>
     <div class="sec-head">
       <div><div class="eyebrow">Decisions</div><h2>What each yes costs</h2></div>
-      <p class="lead tiny">Committed rows show what saying no would save. Maybe and declined rows show what saying yes would add, given everything else you've committed to.</p>
+      <p class="lead tiny">Committed rows show what saying no would save. Maybe and declined rows show what saying yes would add, given everything else you've committed to. "Covered" is the share of that trip's flights someone else pays; the legs to it and home from it count toward it.</p>
     </div>
     <div class="tablewrap">
       <table id="events">
-        <thead><tr><th>Status</th><th>Event</th><th>If you flip it</th><th>Airport</th><th>Starts</th><th>Ends</th><th>Travel days</th><th>Priority</th><th></th></tr></thead>
+        <thead><tr><th>Status</th><th>Event</th><th>If you flip it</th><th>Airport</th><th>Starts</th><th>Ends</th><th>Travel days</th><th>Priority</th><th>Covered</th><th></th></tr></thead>
         <tbody id="eventRows"></tbody>
-        <tfoot><tr class="addrow"><td colspan="9"><button class="btn" id="addEvent">+ Add an event</button></td></tr></tfoot>
+        <tfoot><tr class="addrow"><td colspan="10"><button class="btn" id="addEvent">+ Add an event</button></td></tr></tfoot>
       </table>
     </div>
   </section>
@@ -480,7 +485,7 @@ function render() {
 function renderTiles() {
   const t = plan.totals, wrap = $('#tiles'); wrap.replaceChildren();
   const tile = (k, v, s) => wrap.append(el('div', { class: 'tile' }, el('div', { class: 'k' }, k), el('div', { class: 'v' }, v), el('div', { class: 's' }, s)));
-  tile('Airfare', money(t.price), t.legs ? `≈ ${t.points.toLocaleString()} Chase pts at ${plan.settings.pointsCents}¢ · ${t.quotedLegs} of ${t.legs} legs quoted` : 'no committed trips');
+  tile(t.covered ? 'You pay' : 'Airfare', money(t.youPay), t.legs ? `${t.covered ? `of ${money(t.price)}, ${money(t.covered)} covered · ` : ''}≈ ${t.points.toLocaleString()} Chase pts at ${plan.settings.pointsCents}¢ · ${t.quotedLegs} of ${t.legs} quoted` : 'no committed trips');
   tile('Travel time', FP.fmtDuration(t.blockMin), `${t.legs} leg${t.legs === 1 ? '' : 's'}${t.stops ? `, ${t.stops} connection${t.stops === 1 ? '' : 's'}` : ''}${t.legs ? ` · ≈ ${FP.fmtDuration(t.doorMin)} door to door` : ''}`);
   tile('Journey span', t.legs ? FP.fmtSpan(t.spanMin) : '—', t.legs ? t.route.join(' → ') : 'first departure to last arrival');
   tile('Nights away', String(t.nightsAway), `${t.trips} trip${t.trips === 1 ? '' : 's'} from ${plan.home ? plan.home.code : '?'}`);
@@ -568,7 +573,7 @@ function renderScenarios() {
     tb.append(el('tr', {}, el('td', { colspan: 8, class: 'muted' }, state.events.length ? 'No maybes yet. Everything is either committed or declined.' : 'Add events to compare scenarios.')));
     return;
   }
-  lead.textContent = `Committed events are in every row. Each row is one yes/no mix of ${sc.toggled.map((id) => byEv[id].name).join(', ')}, routed automatically and sorted by airfare plus ${money(plan.settings.strainDollar)} per strain point.${sc.skipped.length ? ` ${sc.skipped.length} more maybe${sc.skipped.length > 1 ? 's are' : ' is'} left out to keep this readable.` : ''}`;
+  lead.textContent = `Committed events are in every row. Each row is one yes/no mix of ${sc.toggled.map((id) => byEv[id].name).join(', ')}, routed automatically and sorted by what you pay out of pocket plus ${money(plan.settings.strainDollar)} per strain point.${sc.skipped.length ? ` ${sc.skipped.length} more maybe${sc.skipped.length > 1 ? 's are' : ' is'} left out to keep this readable.` : ''}`;
   const currentYes = state.events.filter((e) => e.status === 'yes').map((e) => e.id);
   for (const r of sc.rows) {
     const t = r.totals;
@@ -577,7 +582,7 @@ function renderScenarios() {
     tb.append(el('tr', { class: isCurrent ? 'current' : '' },
       el('td', { class: 'scen-yes' }, names, isCurrent ? el('span', { class: 'chip', style: 'margin-left:8px' }, 'current') : null),
       el('td', {}, el('div', { class: 'scen-route' }, t.route.length ? t.route.join(' → ') : 'stay home')),
-      el('td', { class: 'r num' }, money(t.price)),
+      el('td', { class: 'r num' }, money(t.youPay), t.covered ? el('div', { class: 'gross' }, `of ${money(t.price)}`) : null),
       el('td', { class: 'r' }, el('span', { class: 'pts' }, t.points.toLocaleString())),
       el('td', { class: 'r num' }, FP.fmtDuration(t.blockMin)),
       el('td', { class: 'r num' }, t.legs ? FP.fmtSpan(t.spanMin) : '—'),
@@ -673,7 +678,7 @@ function renderEvents() {
   const tb = $('#eventRows'); tb.replaceChildren();
   const byId = Object.fromEntries(marg.rows.map((r) => [r.id, r]));
   const byEv = Object.fromEntries(state.events.map((e) => [e.id, e]));
-  if (!state.events.length) tb.append(el('tr', {}, el('td', { colspan: 9, class: 'muted' }, 'No events yet. Add the things you are deciding about, including the ones you have already said yes to.')));
+  if (!state.events.length) tb.append(el('tr', {}, el('td', { colspan: 10, class: 'muted' }, 'No events yet. Add the things you are deciding about, including the ones you have already said yes to.')));
   for (const e of state.events) {
     const r = byId[e.id];
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Status' });
@@ -693,6 +698,9 @@ function renderEvents() {
         el('label', {}, el('input', { type: 'checkbox', id: 'ab-' + e.id, ...(e.arriveDayBefore ? { checked: '' } : {}), onchange: (ev) => update(e, { arriveDayBefore: ev.target.checked }) }), 'fly in day before'),
         el('label', {}, el('input', { type: 'checkbox', id: 'la-' + e.id, ...(e.leaveDayAfter ? { checked: '' } : {}), onchange: (ev) => update(e, { leaveDayAfter: ev.target.checked }) }), 'fly out day after'))),
       el('td', {}, (() => { const s = el('select', { 'aria-label': 'Priority', id: 'pr-' + e.id, onchange: (ev) => update(e, { priority: +ev.target.value }) }); for (const [v, l] of [[1, 'Must'], [2, 'Want'], [3, 'Nice']]) s.append(el('option', { value: v, ...(e.priority === v ? { selected: '' } : {}) }, l)); return s; })()),
+      el('td', {}, el('div', { class: 'cov' },
+        el('span', {}, el('input', { type: 'number', min: 0, max: 100, step: 5, value: e.coverage || 0, 'aria-label': 'Percent of this trip\'s airfare that someone else pays', id: 'cv-' + e.id, onchange: (ev) => update(e, { coverage: Math.max(0, Math.min(100, +ev.target.value || 0)) }) }), '%'),
+        el('input', { type: 'text', value: e.coveredBy || '', placeholder: 'by whom', 'aria-label': 'Who covers it', id: 'cb-' + e.id, onchange: (ev) => update(e, { coveredBy: ev.target.value }) }))),
       el('td', {}, el('button', { class: 'btn quiet small', title: 'Remove', 'aria-label': 'Remove event', onclick: () => { state.events = state.events.filter((x) => x.id !== e.id); touch(); } }, '×'))
     );
     tb.append(tr);
@@ -702,10 +710,10 @@ function deltaCell(e, r, byEv) {
   if (!r || !r.valid) return el('div', { class: 'delta muted' }, 'Fill in airport and dates to see the cost.');
   const d = r.delta, yes = e.status === 'yes';
   const k = yes ? -1 : 1; // committed rows report the saving of saying no
-  const price = d.price * k, air = d.blockMin * k, strain = Math.round(d.strain * k * 10) / 10, nights = d.nightsAway * k, tight = d.tight * k;
+  const price = d.youPay * k, gross = d.price * k, air = d.blockMin * k, strain = Math.round(d.strain * k * 10) / 10, nights = d.nightsAway * k, tight = d.tight * k;
   const box = el('div', { class: 'delta' });
   box.append(el('div', { class: 'lead-in' }, yes ? 'Say no and you save' : 'Say yes and it adds'));
-  const line = el('div', {}, el('span', { class: 'money ' + (yes ? 'neg' : 'pos') }, (yes ? '−' : '+') + money(Math.abs(price)).replace(/^-/, '')), el('span', { class: 'muted' }, ` · ${signDur(air)} in air · ${sign(strain)} strain`));
+  const line = el('div', {}, el('span', { class: 'money ' + (yes ? 'neg' : 'pos') }, (yes ? '−' : '+') + money(Math.abs(price)).replace(/^-/, '')), el('span', { class: 'muted' }, `${gross !== price ? ` of ${money(Math.abs(gross))}` : ''} · ${signDur(air)} in air · ${sign(strain)} strain`));
   box.append(line);
   const bits = [];
   if (nights) bits.push(`${sign(nights)} night${Math.abs(nights) === 1 ? '' : 's'} away`);
@@ -745,7 +753,7 @@ function renderLegs() {
       el('td', {}, l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}` : 'nonstop', l.redEye ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'red-eye') : null),
       el('td', { class: 'r num' }, l.tzShiftH ? `${l.tzShiftH}h` : '—'),
       el('td', { class: 'r num' }, String(l.strain)),
-      el('td', { class: 'r' }, priceCell, el('div', { class: 'src ' + l.source }, srcText), el('div', { class: 'pts' }, `≈ ${FP.toPoints(l.price, state.settings.pointsCents).toLocaleString()} pts`)),
+      el('td', { class: 'r' }, priceCell, el('div', { class: 'src ' + l.source }, srcText), l.coverage ? el('div', { class: 'gross', style: 'color:var(--good-text)' }, `${l.coverage}% covered${l.coveredBy ? ' by ' + l.coveredBy : ''} · you pay ${money(l.youPay, l.currency)}`) : null, el('div', { class: 'pts' }, `≈ ${FP.toPoints(l.youPay, state.settings.pointsCents).toLocaleString()} pts`)),
       act
     ));
   }

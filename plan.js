@@ -155,7 +155,7 @@
 
   // ---------- plan ----------
   function normalizeEvent(e) {
-    return Object.assign({ status: 'maybe', priority: 2, arriveDayBefore: true, leaveDayAfter: false }, e);
+    return Object.assign({ status: 'maybe', priority: 2, arriveDayBefore: true, leaveDayAfter: false, coverage: 0, coveredBy: '' }, e);
   }
   function arriveDate(e) { return e.arriveDayBefore ? addDays(e.start, -1) : e.start; }
   function leaveDate(e) { return e.leaveDayAfter ? addDays(e.end, 1) : e.end; }
@@ -249,14 +249,25 @@
     const nightsAway = trips.reduce((s, t) => s + Math.max(0, diffDays(t.depart, t.return)), 0);
 
     let cum = 0;
-    for (const l of legs) { cum += l.durationMin; l.cumTravelMin = cum; }
+    const evById = Object.fromEntries(events.map((e) => [e.id, e]));
+    for (const l of legs) {
+      cum += l.durationMin; l.cumTravelMin = cum;
+      // a leg is paid for by the event it serves: the one it flies to, else the one it flies home from
+      const owner = evById[l.eventTo] || evById[l.eventFrom];
+      l.forEvent = owner ? owner.id : null;
+      const cov = owner ? Math.max(0, Math.min(100, +owner.coverage || 0)) : 0;
+      l.coverage = cov; l.coveredBy = owner && cov ? owner.coveredBy || '' : '';
+      l.covered = Math.round(l.price * cov) / 100; l.youPay = Math.round((l.price - l.covered) * 100) / 100;
+    }
     const first = legs[0], last = legs[legs.length - 1];
     const route = legs.length ? [legs[0].from].concat(legs.map((l) => l.to)) : [];
     const totals = {
       route,
       spanMin: legs.length ? Math.max(0, Math.round(last.arriveMin - first.departMin)) : 0, // first departure to last arrival, local clocks
       doorMin: Math.round(legs.reduce((s, l) => s + l.durationMin + settings.weights.airportHours * 60, 0)),
-      points: Math.round(legs.reduce((s, l) => s + l.price, 0) / (settings.pointsCents / 100)),
+      covered: Math.round(legs.reduce((s, l) => s + l.covered, 0)),
+      youPay: Math.round(legs.reduce((s, l) => s + l.youPay, 0)),
+      points: Math.round(legs.reduce((s, l) => s + l.youPay, 0) / (settings.pointsCents / 100)),
       price: Math.round(legs.reduce((s, l) => s + l.price, 0)),
       quotedPrice: Math.round(legs.filter((l) => l.source !== 'estimate').reduce((s, l) => s + l.price, 0)),
       quotedLegs: legs.filter((l) => l.source !== 'estimate').length,
@@ -281,7 +292,7 @@
 
   function diffTotals(on, off) {
     const d = {};
-    for (const k of ['price', 'blockMin', 'strain', 'nightsAway', 'tight', 'legs', 'tzHours', 'conflicts', 'trips']) d[k] = Math.round((on[k] - off[k]) * 10) / 10;
+    for (const k of ['price', 'youPay', 'covered', 'points', 'blockMin', 'strain', 'nightsAway', 'tight', 'legs', 'tzHours', 'conflicts', 'trips']) d[k] = Math.round((on[k] - off[k]) * 10) / 10;
     return d;
   }
 
@@ -314,7 +325,7 @@
       const yes = toggled.filter((e, i) => mask & (1 << i)).map((e) => e.id);
       const st = Object.assign({}, state, { events: evs.map((e) => (yes.includes(e.id) ? Object.assign({}, e, { status: 'yes' }) : toggled.some((t) => t.id === e.id) || fixedOut.includes(e.id) ? Object.assign({}, e, { status: 'no' }) : e)) });
       const plan = buildPlan(st);
-      out.push({ mask, yes, no: toggled.filter((e) => !yes.includes(e.id)).map((e) => e.id), plan, totals: plan.totals, score: plan.totals.price + (plan.settings.strainDollar || 0) * plan.totals.strain });
+      out.push({ mask, yes, no: toggled.filter((e) => !yes.includes(e.id)).map((e) => e.id), plan, totals: plan.totals, score: plan.totals.youPay + (plan.settings.strainDollar || 0) * plan.totals.strain });
     }
     out.sort((a, b) => a.score - b.score);
     return { toggled: toggled.map((e) => e.id), skipped: fixedOut, rows: out };

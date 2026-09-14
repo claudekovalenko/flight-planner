@@ -11,6 +11,8 @@ considering on one calendar (with the ones you've already committed to), and it 
   shorter than your buffer at home;
 - **the marginal cost of each event**: what saying *no* to a committed event saves, and
   what saying *yes* to a maybe adds, given everything else on the calendar;
+- **who pays**: each event carries a covered percentage and payer (a school budget, a host); the
+  legs to it and home from it count toward it, and out-of-pocket becomes the headline number;
 - **every scenario side by side**: each yes/no combination of your maybes, auto-routed and
   ranked by airfare plus what you say a strain point is worth, with one click to load it;
 - **a route map** (great-circle legs over Natural Earth land), cumulative travel time, journey

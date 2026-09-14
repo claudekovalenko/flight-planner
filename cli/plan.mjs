@@ -27,7 +27,7 @@ if (args.includes('--json')) { console.log(JSON.stringify({ plan, marginal: rows
 const pad = (s, n, right) => { s = String(s); return right ? s.padStart(n) : s.padEnd(n); };
 const byId = Object.fromEntries(state.events.map((e) => [e.id, e]));
 console.log(`Home ${plan.settings.home} · ${plan.events.length} committed event(s) · ${plan.legs.length} leg(s)`);
-console.log(`Airfare ${FP.fmtMoney(plan.totals.price, cur)} (${plan.totals.quotedLegs}/${plan.totals.legs} legs quoted) · ${FP.fmtDuration(plan.totals.blockMin)} in the air · ${plan.totals.nightsAway} nights away over ${plan.totals.trips} trip(s)`);
+console.log(`Airfare ${FP.fmtMoney(plan.totals.price, cur)}, you pay ${FP.fmtMoney(plan.totals.youPay, cur)} after ${FP.fmtMoney(plan.totals.covered, cur)} covered (${plan.totals.quotedLegs}/${plan.totals.legs} legs quoted) · ${FP.fmtDuration(plan.totals.blockMin)} in the air · ${plan.totals.nightsAway} nights away over ${plan.totals.trips} trip(s)`);
 console.log(`Strain ${plan.totals.strain} (${plan.totals.band}) · ${plan.totals.tight} tight turnaround(s) · ${plan.totals.tzHours}h of time-zone shift · ${plan.totals.conflicts} conflict(s)\n`);
 for (const w of plan.warnings) console.log(`! ${w.text}`);
 if (plan.warnings.length) console.log('');
@@ -46,7 +46,7 @@ if (sc.toggled.length) {
   console.log(`\nSCENARIOS (every yes/no mix of: ${sc.toggled.map((id) => byId[id].name).join(', ')}) — best score first`);
   for (const r of sc.rows) {
     const t = r.totals;
-    console.log(`  ${pad(r.yes.length ? r.yes.map((id) => byId[id].name).join(' + ') : '(none of them)', 30)} ${pad(t.route.join('→'), 26)} ${pad(FP.fmtMoney(t.price, cur), 7, true)} ${pad(t.points.toLocaleString() + ' pts', 11, true)} ${pad(FP.fmtDuration(t.blockMin), 8, true)} travel  span ${pad(FP.fmtSpan(t.spanMin), 6)} strain ${pad(t.strain, 5, true)} ${t.band}`);
+    console.log(`  ${pad(r.yes.length ? r.yes.map((id) => byId[id].name).join(' + ') : '(none of them)', 30)} ${pad(t.route.join('→'), 26)} ${pad(FP.fmtMoney(t.youPay, cur), 7, true)} of ${pad(FP.fmtMoney(t.price, cur), 6)} ${pad(t.points.toLocaleString() + ' pts', 11, true)} ${pad(FP.fmtDuration(t.blockMin), 8, true)} travel  span ${pad(FP.fmtSpan(t.spanMin), 6)} strain ${pad(t.strain, 5, true)} ${t.band}`);
   }
 }
 console.log('\nDECISIONS (delta of flipping each event)');
@@ -55,6 +55,6 @@ for (const r of rows) {
   if (!r.valid) { console.log(`  ${pad(e.name, 22)} ${e.status.toUpperCase().padEnd(5)}  (incomplete event)`); continue; }
   const d = r.delta, sign = (n) => (n > 0 ? '+' : '') + n;
   const verb = e.status === 'yes' ? 'saying NO saves' : 'saying YES adds';
-  const dd = e.status === 'yes' ? { price: -d.price, blockMin: -d.blockMin, strain: -d.strain, nightsAway: -d.nightsAway, tight: -d.tight } : d;
-  console.log(`  ${pad(e.name, 22)} ${e.status.toUpperCase().padEnd(5)} ${verb} ${FP.fmtMoney(Math.abs(dd.price), cur)}, ${FP.fmtDuration(Math.abs(dd.blockMin))} in air, strain ${sign(dd.strain)}, nights ${sign(dd.nightsAway)}, tight turnarounds ${sign(dd.tight)}${r.conflictsIfYes.length ? '  CONFLICTS with ' + r.conflictsIfYes.map((id) => byId[id].name).join(', ') : ''}`);
+  const dd = e.status === 'yes' ? { price: -d.youPay, blockMin: -d.blockMin, strain: -d.strain, nightsAway: -d.nightsAway, tight: -d.tight } : Object.assign({}, d, { price: d.youPay });
+  console.log(`  ${pad(e.name, 22)} ${e.status.toUpperCase().padEnd(5)} ${verb} ${FP.fmtMoney(Math.abs(dd.price), cur)}, ${FP.fmtDuration(Math.abs(dd.blockMin))} in air, strain ${sign(dd.strain)}, nights ${sign(dd.nightsAway)}, tight turnarounds ${sign(dd.tight)}${d.youPay !== d.price ? ' (of ' + FP.fmtMoney(Math.abs(d.price), cur) + ' gross)' : ''}${r.conflictsIfYes.length ? '  CONFLICTS with ' + r.conflictsIfYes.map((id) => byId[id].name).join(', ') : ''}`);
 }
