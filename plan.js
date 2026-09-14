@@ -140,7 +140,7 @@
       if (typeof q.stops === 'number') leg.stops = q.stops;
       leg.airline = q.airline || null; leg.depart = q.depart || null; leg.arrive = q.arrive || null;
       const dep = parseClock(q.depart), arr = parseClock(q.arrive);
-      leg.redEye = (dep != null && dep >= 21) || (arr != null && arr <= 6 && (q.dayDiff || 0) >= 1);
+      leg.redEye = (dep != null && dep >= 21) || ((q.dayDiff || 0) >= 1 && ((arr != null && arr <= 6) || (q.durationMin || 0) >= 480)); // overnight itineraries count too
       leg.fetchedAt = q.fetchedAt || null;
     }
     const w = ctx.weights;
